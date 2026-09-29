@@ -200,10 +200,9 @@ footer .assinatura{font-family:var(--mao);font-size:1.7rem;color:var(--vinho);ma
 .ficha-cat::after{content:"";position:absolute;bottom:12px;left:50%;width:14px;height:14px;border-radius:50%;background:#F1E7D6;transform:translateX(-50%);box-shadow:inset 0 1px 3px rgba(58,41,32,.35)}
 .ficha-cat .aut{font-style:italic;color:var(--tinta-suave);font-size:1rem;min-height:26px}
 .ficha-cat h3{font-size:1.45rem;margin:12px 0 4px;padding-right:64px}
+.carimbo{position:absolute;top:66px;right:14px;width:62px;height:62px;border:2px solid var(--vinho);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mao);font-size:1.4rem;line-height:1;color:var(--vinho);transform:rotate(-14deg);opacity:.75;box-shadow:inset 0 0 0 3px #FFFBF2,inset 0 0 0 4px rgba(142,27,46,.6)}
 .ficha-cat .meta-bib{font-size:.95rem;color:var(--tinta-suave);margin:0 0 14px}
 .ficha-cat .acoes{margin-top:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-.carimbo{position:absolute;top:66px;right:14px;width:66px;height:66px;border:2px solid var(--vinho);border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;
-  font-family:var(--mao);font-size:1rem;line-height:1;color:var(--vinho);transform:rotate(-14deg);opacity:.75;padding:4px}
 a.btn{display:inline-block;text-decoration:none}
 .check{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:1rem;color:var(--tinta)}
 .check input{width:auto;margin-top:5px}
@@ -548,13 +547,12 @@ function desenharBiblioteca() {
   const lista = livrosBib.filter(b => !q || semAcento(b.titulo + " " + b.autor).includes(q));
   $("listaBib").innerHTML = lista.length ? lista.map(b => {
     const url = urlLivro(b);
-    const origem = b.origem === "dominio_publico" ? "domínio público" : "liberado pela autora";
     const meta = [b.ano_obra, b.fonte].filter(Boolean).map(esc).join(" · ");
     return `<article class="ficha-cat">
       <div class="aut">${esc(b.autor)}</div>
-      <span class="carimbo" aria-hidden="true">${origem}</span>
+      <span class="carimbo" aria-hidden="true">divas</span>
       <h3>${esc(b.titulo)}</h3>
-      <p class="meta-bib">${meta || "&nbsp;"}<span class="sr"> · ${origem}</span></p>
+      <p class="meta-bib">${meta || "&nbsp;"}</p>
       <div class="acoes">
         ${url ? `<a class="btn mini" href="${esc(url)}" target="_blank" rel="noopener">${formato(b) ? "Baixar " + formato(b) : "Abrir livro"}</a>` : `<span class="vazio" style="font-size:1.2rem">arquivo em breve</span>`}
       </div>
