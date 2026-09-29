@@ -188,6 +188,26 @@ footer .assinatura{font-family:var(--mao);font-size:1.7rem;color:var(--vinho);ma
 .admin .item{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px dotted rgba(110,86,70,.35);font-size:1rem}
 .caixa-admin{margin-top:10px}
 
+/* ---------- biblioteca ---------- */
+.busca-bib{margin-bottom:26px;max-width:440px}
+.fichas{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px 22px}
+.ficha-cat{position:relative;display:flex;flex-direction:column;background-color:#FFFBF2;padding:16px 20px 40px;min-height:230px;
+  box-shadow:0 6px 14px -8px rgba(58,41,32,.45);
+  background-image:linear-gradient(rgba(142,27,46,.45),rgba(142,27,46,.45)),repeating-linear-gradient(transparent 0 25px,rgba(110,86,70,.16) 25px 26px);
+  background-size:100% 1.5px,100% 100%;background-position:0 58px,0 60px;background-repeat:no-repeat,repeat}
+.ficha-cat:nth-child(3n+1){transform:rotate(-.7deg)}
+.ficha-cat:nth-child(3n+2){transform:rotate(.5deg)}
+.ficha-cat::after{content:"";position:absolute;bottom:12px;left:50%;width:14px;height:14px;border-radius:50%;background:#F1E7D6;transform:translateX(-50%);box-shadow:inset 0 1px 3px rgba(58,41,32,.35)}
+.ficha-cat .aut{font-style:italic;color:var(--tinta-suave);font-size:1rem;min-height:26px}
+.ficha-cat h3{font-size:1.45rem;margin:12px 0 4px;padding-right:64px}
+.ficha-cat .meta-bib{font-size:.95rem;color:var(--tinta-suave);margin:0 0 14px}
+.ficha-cat .acoes{margin-top:auto;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.carimbo{position:absolute;top:66px;right:14px;width:66px;height:66px;border:2px solid var(--vinho);border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;
+  font-family:var(--mao);font-size:1rem;line-height:1;color:var(--vinho);transform:rotate(-14deg);opacity:.75;padding:4px}
+a.btn{display:inline-block;text-decoration:none}
+.check{display:flex;gap:10px;align-items:flex-start;margin-top:14px;font-size:1rem;color:var(--tinta)}
+.check input{width:auto;margin-top:5px}
+.nota-admin{margin:0 0 8px;font-size:1rem;color:var(--tinta-suave)}
 dialog{border:none;padding:0;background:transparent;max-width:420px;width:92%}
 dialog::backdrop{background:rgba(58,41,32,.55)}
 .barra-status{background:var(--vinho-escuro);color:var(--papel-claro);text-align:center;font-size:.95rem;padding:6px 12px}
@@ -208,6 +228,7 @@ dialog::backdrop{background:rgba(58,41,32,.55)}
       <a href="#agora">Lendo agora</a>
       <a href="#agenda">Agenda</a>
       <a href="#estante">Já lemos</a>
+      <a href="#biblioteca">Biblioteca</a>
       <a href="#relatos">Relatos</a>
       <a href="#forum">Fórum</a>
       <a href="#participe">Participe</a>
@@ -254,6 +275,18 @@ dialog::backdrop{background:rgba(58,41,32,.55)}
       <div class="cabeca"><h2>Nossa estante</h2><p>toque numa lombada para ver quando lemos</p></div>
       <div class="estante"><div class="prateleira" id="prateleira"></div></div>
       <div class="papel ficha oculto" id="ficha" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <!-- BIBLIOTECA -->
+  <section id="biblioteca">
+    <div class="wrap">
+      <div class="cabeca"><h2>Biblioteca</h2><p>clássicos livres para baixar e ler quando quiser</p></div>
+      <div class="busca-bib">
+        <label for="bBusca">Buscar por título ou autora</label>
+        <input id="bBusca" type="search" autocomplete="off">
+      </div>
+      <div class="fichas" id="listaBib"></div>
     </div>
   </section>
 
@@ -375,10 +408,14 @@ const EXEMPLO = {
   forms: { membro: "", sugestao: "", melhoria: "" }
 };
 const VAZIO = { atual: { titulo: "", autor: "", inicio: "", fim: "" }, lidos: [], eventos: [], forms: { membro: "", sugestao: "", melhoria: "" } };
+const EXEMPLO_BIB = [
+  { id: "b1", titulo: "Dom Casmurro", autor: "Machado de Assis", ano_obra: "1899", origem: "dominio_publico", falecimento: 1908, fonte: "", arquivo: null, link: null },
+  { id: "b2", titulo: "A Falência", autor: "Júlia Lopes de Almeida", ano_obra: "1901", origem: "dominio_publico", falecimento: 1934, fonte: "", arquivo: null, link: null }
+];
 const CORES_LOMBADA = ["#8E1B2E","#5C0E1B","#B7747A","#6B4A3A","#A33A4A","#3F2B24","#C99496","#7A2233"];
 
 let dados = structuredClone(sb ? VAZIO : EXEMPLO);
-let relatos = [], topicos = [];
+let relatos = [], topicos = [], livrosBib = sb ? [] : EXEMPLO_BIB;
 let codigoGrupo = null, adminOk = false;
 let notaEscolhida = 5, livroAberto = null, topicoAberto = null;
 
@@ -490,6 +527,78 @@ function abrirFicha(id) {
     <button class="btn leve" id="fichaRelatos">${rs.length ? "Ler relatos" : "Escrever o primeiro relato"}</button>`;
   f.classList.remove("oculto");
   $("fichaRelatos").onclick = () => { $("rFiltro").value = l.id; $("rLivro").value = l.id; desenharRelatos(); $("relatos").scrollIntoView(); };
+}
+
+/* ---------- biblioteca ---------- */
+const semAcento = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const anoLimiteDP = () => new Date().getFullYear() - 71;
+const linkSeguro = u => { u = String(u || "").trim(); if (/^https?:\/\//i.test(u)) return u; if (/^\/?livros\/[^?#]+$/i.test(u) && !u.includes("..")) return "/" + u.replace(/^\//, ""); return ""; };
+const formato = b => /\.epub$/i.test(b.arquivo || b.link || "") ? "EPUB" : /\.pdf$/i.test(b.arquivo || b.link || "") ? "PDF" : "";
+async function carregarBiblioteca() {
+  const { data, error } = await sb.from("biblioteca").select("*").order("titulo");
+  if (error) { console.warn("Biblioteca ainda não configurada:", error.message); livrosBib = []; return; }
+  livrosBib = data;
+}
+function urlLivro(b) {
+  if (b.arquivo && sb) return sb.storage.from("biblioteca").getPublicUrl(b.arquivo).data.publicUrl;
+  return linkSeguro(b.link);
+}
+function desenharBiblioteca() {
+  const q = semAcento($("bBusca").value.trim());
+  const lista = livrosBib.filter(b => !q || semAcento(b.titulo + " " + b.autor).includes(q));
+  $("listaBib").innerHTML = lista.length ? lista.map(b => {
+    const url = urlLivro(b);
+    const origem = b.origem === "dominio_publico" ? "domínio público" : "liberado pela autora";
+    const meta = [b.ano_obra, b.fonte].filter(Boolean).map(esc).join(" · ");
+    return `<article class="ficha-cat">
+      <div class="aut">${esc(b.autor)}</div>
+      <span class="carimbo" aria-hidden="true">${origem}</span>
+      <h3>${esc(b.titulo)}</h3>
+      <p class="meta-bib">${meta || "&nbsp;"}<span class="sr"> · ${origem}</span></p>
+      <div class="acoes">
+        ${url ? `<a class="btn mini" href="${esc(url)}" target="_blank" rel="noopener">${formato(b) ? "Baixar " + formato(b) : "Abrir livro"}</a>` : `<span class="vazio" style="font-size:1.2rem">arquivo em breve</span>`}
+      </div>
+    </article>`;
+  }).join("") : `<p class="vazio">${q ? "Nenhum livro encontrado com essa busca." : "A biblioteca está esperando os primeiros clássicos."}</p>`;
+}
+async function removerDaBiblioteca(id) {
+  const b = livrosBib.find(x => x.id === id);
+  if (!b || !confirm(`Remover “${b.titulo}” da biblioteca?`)) return false;
+  if (b.arquivo) await sb.storage.from("biblioteca").remove([b.arquivo]);
+  const { error } = await sb.from("biblioteca").delete().eq("id", id);
+  if (error) { alert("Não foi possível remover. Entre de novo na Área da organização."); return false; }
+  await carregarBiblioteca(); desenharBiblioteca(); return true;
+}
+async function adicionarNaBiblioteca(aviso) {
+  const titulo = $("bTit").value.trim(), autor = $("bAut").value.trim(), ano_obra = $("bAno").value.trim();
+  const origem = $("bOrig").value, falecimento = parseInt($("bFal").value, 10), fonte = $("bFonte").value.trim();
+  const arquivo = $("bArq").files[0], link = $("bLink").value.trim();
+  const limite = anoLimiteDP();
+  if (!titulo || !autor) return aviso("Informe o título e a autora.");
+  if (origem === "dominio_publico" && !(falecimento <= limite)) return aviso(`Para domínio público, a autora precisa ter falecido até ${limite}. Confira o ano de falecimento.`);
+  if (origem === "liberado" && !fonte) return aviso("Informe onde a autora ou editora liberou o livro.");
+  if (!arquivo && !link) return aviso("Envie um arquivo ou informe o caminho no GitHub.");
+  if (link && !linkSeguro(link)) return aviso("Use um link que comece com https:// ou o caminho do GitHub, como livros/dom-casmurro.pdf");
+  const ext = arquivo ? (arquivo.name.match(/\.(pdf|epub)$/i) || [])[1] : null;
+  if (arquivo && !ext) return aviso("O arquivo precisa ser PDF ou EPUB.");
+  if (arquivo && arquivo.size > 50 * 1024 * 1024) return aviso("O arquivo passa de 50 MB. Tente uma versão menor.");
+  if (!$("bDecl").checked) return aviso("Marque a confirmação de que o livro pode ser compartilhado.");
+  $("bAdd").disabled = true; aviso(arquivo ? "Enviando o arquivo…" : "Salvando…");
+  let caminho = null;
+  if (arquivo) {
+    caminho = `${Date.now()}-${semAcento(titulo).replace(/[^a-z0-9]+/g, "-").slice(0, 60)}.${ext.toLowerCase()}`;
+    const up = await sb.storage.from("biblioteca").upload(caminho, arquivo, { contentType: ext.toLowerCase() === "epub" ? "application/epub+zip" : "application/pdf", upsert: false });
+    if (up.error) { $("bAdd").disabled = false; return aviso("Não foi possível enviar o arquivo. Confira se a biblioteca foi configurada no Supabase."); }
+  }
+  const { error } = await sb.from("biblioteca").insert({
+    titulo, autor, ano_obra: ano_obra || null, origem, falecimento: Number.isFinite(falecimento) ? falecimento : null,
+    fonte: fonte || null, arquivo: caminho, link: caminho ? null : linkSeguro(link), tamanho: arquivo ? arquivo.size : null
+  });
+  if (error) {
+    if (caminho) await sb.storage.from("biblioteca").remove([caminho]);
+    $("bAdd").disabled = false; return aviso("Não foi possível salvar o livro. Confira os dados e tente de novo.");
+  }
+  await carregarBiblioteca(); desenharBiblioteca(); return true;
 }
 
 /* ---------- relatos ---------- */
@@ -743,13 +852,30 @@ async function desenharAdmin() {
     <label for="fm3">Melhorias</label><input id="fm3" type="url" value="${esc(dados.forms.melhoria)}">
     <button class="btn mini" id="fmSalvar" style="margin-top:14px">Salvar links</button>
 
+    <h3>Biblioteca</h3>
+    <p class="nota-admin">Só entram livros em domínio público (autora falecida até ${anoLimiteDP()}) ou liberados pela própria autora ou editora. Tradução também tem direito autoral: use o texto original ou uma tradução que também esteja em domínio público.</p>
+    ${livrosBib.map(b => `<div class="item"><span>${esc(b.titulo)} <small style="color:var(--tinta-suave)">(${esc(b.autor)})</small></span><button class="link-remover" data-rem-bib="${esc(b.id)}">remover</button></div>`).join("") || "<p>Nenhum ainda.</p>"}
+    <div class="linha">
+      <div><label for="bTit">Título</label><input id="bTit"></div>
+      <div><label for="bAut">Autora / autor</label><input id="bAut"></div>
+      <div><label for="bAno">Ano da obra (opcional)</label><input id="bAno" inputmode="numeric" maxlength="10"></div>
+      <div><label for="bOrig">Por que pode ser compartilhado</label>
+        <select id="bOrig"><option value="dominio_publico">Domínio público</option><option value="liberado">Liberado pela autora ou editora</option></select></div>
+      <div id="bFalBox"><label for="bFal">Ano de falecimento da autora</label><input id="bFal" type="number" min="1" max="${anoLimiteDP()}"></div>
+      <div><label for="bFonte" id="bFonteRot">Observação (ex.: tradução de 1920)</label><input id="bFonte" maxlength="120"></div>
+    </div>
+    <label for="bArq">Enviar arquivo PDF ou EPUB (até 50 MB)</label><input id="bArq" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip">
+    <label for="bLink">Ou arquivo que está no GitHub (ex.: livros/dom-casmurro.pdf) ou link externo</label><input id="bLink" placeholder="livros/nome-do-arquivo.pdf">
+    <label class="check"><input type="checkbox" id="bDecl"> Confirmo que este livro pode ser compartilhado livremente.</label>
+    <button class="btn mini" id="bAdd" style="margin-top:14px">Adicionar à biblioteca</button>
+
     <h3>Código do grupo</h3>
     <p style="margin:0;font-size:1rem;color:var(--tinta-suave)">É o código que as integrantes digitam para publicar no fórum e nos relatos.</p>
     <label for="cG">Código atual</label><input id="cG" value="${esc(codigoAtual)}">
     <button class="btn mini" id="cSalvar" style="margin-top:14px">Salvar código</button>
     <div class="aviso" id="aAviso" role="status"></div>`;
 
-  const aviso = t => { const el = $("aAviso"); if (el) { el.textContent = t; el.scrollIntoView({ block: "nearest" }); } };
+  const aviso = t => { const el = $("aAviso"); if (el) { el.textContent = t; el.scrollIntoView({ block: "nearest" }); } return false; };
   const salvar = async msg => {
     const { data, error } = await sb.from("clube").update({ dados, atualizado_em: new Date().toISOString() }).eq("id", 1).select("id");
     if (error || !data || !data.length) { await carregarClube().catch(() => {}); tudo(); await desenharAdmin(); aviso("Não foi possível salvar. Saia e entre de novo na Área da organização."); return; }
@@ -784,6 +910,19 @@ async function desenharAdmin() {
     dados.forms = { membro: $("fm1").value.trim(), sugestao: $("fm2").value.trim(), melhoria: $("fm3").value.trim() };
     salvar("Links salvos.");
   };
+  const ajustarOrigem = () => {
+    const dp = $("bOrig").value === "dominio_publico";
+    $("bFalBox").classList.toggle("oculto", !dp);
+    $("bFonteRot").textContent = dp ? "Observação (ex.: tradução de 1920)" : "Onde foi liberado (link ou nome da editora)";
+  };
+  $("bOrig").onchange = ajustarOrigem; ajustarOrigem();
+  $("bAdd").onclick = async () => {
+    const ok = await adicionarNaBiblioteca(aviso);
+    if (ok === true) { await desenharAdmin(); aviso("Livro adicionado à biblioteca."); }
+  };
+  $("painelAdmin").querySelectorAll("[data-rem-bib]").forEach(b => b.onclick = async () => {
+    if (await removerDaBiblioteca(b.dataset.remBib)) { await desenharAdmin(); aviso("Livro removido da biblioteca."); }
+  });
   $("cSalvar").onclick = async () => {
     const g = $("cG").value.trim();
     if (g.length < 4) { aviso("Use um código com pelo menos 4 caracteres."); return; }
@@ -796,13 +935,13 @@ async function desenharAdmin() {
 }
 
 /* ---------- início ---------- */
-function tudo() { desenharAgora(); desenharEventos(); desenharEstante(); desenharSelects(); desenharRelatos(); desenharForum(); desenharForms(); }
+function tudo() { desenharAgora(); desenharEventos(); desenharEstante(); desenharBiblioteca(); desenharSelects(); desenharRelatos(); desenharForum(); desenharForms(); }
 
 async function iniciar() {
   desenharNota(); tudo();
   if (!sb) { status(semConexao); return; }
   try {
-    await Promise.all([carregarClube(), carregarRelatos(), carregarForum()]);
+    await Promise.all([carregarClube(), carregarRelatos(), carregarForum(), carregarBiblioteca()]);
     status("");
   } catch (e) {
     console.error(e);
@@ -820,6 +959,7 @@ async function iniciar() {
 
 $("rEnviar").onclick = enviarRelato;
 $("rFiltro").onchange = desenharRelatos;
+$("bBusca").oninput = desenharBiblioteca;
 $("tEnviar").onclick = criarTopico;
 $("abrirNovoTopico").onclick = () => {
   const f = $("formTopico"), abrir = f.classList.contains("oculto");
